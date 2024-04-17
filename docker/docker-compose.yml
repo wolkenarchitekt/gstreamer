@@ -1,0 +1,36 @@
+services:
+  signalling:
+    build: .
+    network_mode: host
+    command: >
+      bash -c "cd /src/gstreamer/subprojects/gst-plugins-rs/net/webrtc/signalling
+      && cargo run --bin gst-webrtc-signalling-server"
+    environment:
+      WEBRTCSINK_SIGNALLING_SERVER_LOG: "debug"
+      GST_PLUGIN_PATH: "/src/gstreamer/subprojects/gst-plugins-rs/target/debug"
+    ports:
+      - "8443:8443"
+
+  api:
+    build: .
+    network_mode: host
+    command: >
+      bash -c "cd /src/gstreamer/subprojects/gst-plugins-rs/net/webrtc/gstwebrtc-api
+      && webpack serve --host 0.0.0.0"
+    depends_on:
+      - signalling
+
+  producer:
+    build: .
+    network_mode: host
+    privileged: true
+    tty: true
+    stdin_open: true
+    restart: on-failure
+    command: >
+      bash -c "gst-launch-1.0 webrtcsink name=ws meta="meta,name=gst-stream" audiotestsrc ! ws."
+#      bash -c "gst-launch-1.0 webrtcsink name=ws meta="meta,name=gst-stream" videotestsrc ! ws. audiotestsrc ! ws."
+    depends_on:
+      - signalling
+    environment:
+      GST_PLUGIN_PATH: "/src/gstreamer/subprojects/gst-plugins-rs/target/debug"
